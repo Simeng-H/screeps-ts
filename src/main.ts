@@ -1,4 +1,5 @@
 import { ErrorMapper } from "utils/ErrorMapper";
+import PioneerRoomController from "roomControllers/PioneerRoomController";
 
 declare global {
     /*
@@ -39,5 +40,11 @@ export const loop = ErrorMapper.wrapLoop(() => {
         if (!(name in Game.creeps)) {
             delete Memory.creeps[name];
         }
+    }
+
+    for (const roomName in Game.rooms) {
+        const room = Game.rooms[roomName];
+        const controller = new PioneerRoomController(room);
+        controller.run();
     }
 });
