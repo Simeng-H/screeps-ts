@@ -1,5 +1,6 @@
 import { ErrorMapper } from "utils/ErrorMapper";
 import PioneerRoomController from "roomControllers/PioneerRoomController";
+import { CreepCreationRequest } from "types/creeps/CreepCreationRequest";
 
 declare global {
     /*
@@ -14,9 +15,11 @@ declare global {
     interface Memory {
         uuid: number;
         log: any;
+        spawnQueue: CreepCreationRequest[];
     }
 
     interface CreepMemory {
+        type: string;
         role: string;
         room: string;
         working: boolean;
