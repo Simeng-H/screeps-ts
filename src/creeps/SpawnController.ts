@@ -40,6 +40,26 @@ export class SpawnController implements TickRunnable {
         }
     }
 
+    public getMaxSpawnableEnergy(): number {
+        const extensions = this.room.find(FIND_MY_STRUCTURES, {
+            filter: structure => structure.structureType === STRUCTURE_EXTENSION
+        }) as StructureExtension[];
+
+        const extensionCapacity = _.sum(extensions.map(extension => extension.store.getCapacity(RESOURCE_ENERGY)));
+        const spawnCapacity = this.spawn.store.getCapacity(RESOURCE_ENERGY);
+        const totalCapacity = extensionCapacity + spawnCapacity;
+        return totalCapacity;
+    }
+
+    private popFirstSpawnableRequest(): CreepCreationRequest | null {
+        if (this.queue.length === 0) {
+            return null;
+        }
+        const request = _.find(this.queue, request => CreepUtil.calculateBodyCost(request.body) <= this.getMaxSpawnableEnergy());
+        request && _.pull(this.queue, request);
+        return request || null;
+    }
+
     /**
      * Runs the spawn controller for one tick. If the current spawn is available, the controller will attempt to spawn the next creep in the queue.
      * @remarks This method should be called once per tick.
@@ -51,7 +71,7 @@ export class SpawnController implements TickRunnable {
         if (this.queue.length === 0) {
             return null;
         }
-        const request = this.queue.shift();
+        const request = this.popFirstSpawnableRequest();
         if (request) {
             const result = this.spawn.spawnCreep(request.body, request.name, {
                 memory: request.memory
