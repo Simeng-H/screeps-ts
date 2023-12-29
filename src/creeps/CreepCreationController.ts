@@ -2,11 +2,12 @@ import { CreepBlueprintName } from "types/creeps/CreepBlueprintName";
 import { creepBlueprints } from "./CreepBlueprints";
 import { CreepCreationRequest } from "types/creeps/CreepCreationRequest";
 import { SpawnController } from "./SpawnController";
+import { v4 as uuid } from 'uuid';
+
 
 export class CreepCreationController {
     private typeToTargetCount: Map<CreepBlueprintName, number>;
     private room: Room;
-    // private spawns: StructureSpawn[];
     private spawnControllers: SpawnController[];
     private spawnQueue: CreepCreationRequest[];
 
@@ -38,18 +39,27 @@ export class CreepCreationController {
     }
 
     public run(): void {
-        for (const [blueprintName, count] of this.typeToTargetCount.entries()) {
-            const currentCount = this.getCreepCount(blueprintName);
-            if (currentCount < count) {
-                this.requestSpawn(blueprintName);
-            }
-        }
+        this.maintainCreepCounts();
+        this.controlSpawns();
+    }
+
+    private controlSpawns() : void {
         for (const spawnController of this.spawnControllers) {
             spawnController.run();
         }
     }
 
-    public requestSpawn(blueprintName: string) {
+    private maintainCreepCounts() : void {
+        for (const [blueprintName, count] of this.typeToTargetCount.entries()) {
+            const currentCount = this.getCreepCount(blueprintName);
+            console.log(`Current count for ${blueprintName}: ${currentCount}, target: ${count}`);
+            if (currentCount < count) {
+                this.requestSpawn(blueprintName, count - currentCount);
+            }
+        }
+    }
+
+    public requestSpawn(blueprintName: string, count: number = 1) {
         const blueprint = creepBlueprints[blueprintName];
         if (!blueprint) {
             throw new Error(`No creep blueprint found for name ${blueprintName}`);
@@ -57,17 +67,19 @@ export class CreepCreationController {
         if (!this.isSpawnable(blueprint.body)) {
             throw new Error(`Creep body too large to be spawned by spawn`);
         }
-        const spawnRequest: CreepCreationRequest = {
-            ...blueprint,
-            name: `${blueprintName}-${Game.time}`,
-            memory: {
-                type: blueprintName,
-                role: blueprint.role,
-                room: this.room.name,
-                working: true
-            }
-        };
-        this.spawnQueue.push(spawnRequest);
+        for (let i = 0; i < count; i++) {
+            const spawnRequest: CreepCreationRequest = {
+                ...blueprint,
+                name: `${blueprintName}-${uuid()}`,
+                memory: {
+                    type: blueprintName,
+                    role: blueprint.role,
+                    room: this.room.name,
+                    working: true
+                }
+            };
+            this.spawnQueue.push(spawnRequest);
+        }
     }
     private isSpawnable(body: BodyPartConstant[]): boolean {
         const bodyCost = _.sum(body.map(part => BODYPART_COST[part]));
@@ -76,9 +88,9 @@ export class CreepCreationController {
     }
 
     private getCreepCount(type: CreepBlueprintName): number {
-        const aliveCount = this.creeps.filter(creep => creep.memory.type === type).length;
+        const aliveCount = _.filter(Memory.creeps, creepMemory => creepMemory.type === type).length;
         const queuedCount = this.spawnQueue.filter(request => request.memory.type === type).length;
-        console.log(`Creep count for ${type}: ${aliveCount + queuedCount}`);
+        console.log(`Creep count for ${type}: ${aliveCount + queuedCount}, alive: ${aliveCount}, queued: ${queuedCount}`);
         return aliveCount + queuedCount;
     }
 }

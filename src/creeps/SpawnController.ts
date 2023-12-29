@@ -18,28 +18,6 @@ export class SpawnController implements TickRunnable {
         this.room = room;
     }
 
-    /**
-     * Adds a creep creation request to the spawn queue.
-     * @param request The request to add to the queue.
-     * @remarks The request's body must be able to be spawned by the spawn. i.e. the energy cost of the body must be less than or equal to the spawn's energy capacity (including capacity of accessible extensions).
-     * @throws Error if the request's body is too large to be spawned by the spawn.
-     */
-    public requestSpawn(request: CreepCreationRequest) {
-        const extensions = this.room.find(FIND_MY_STRUCTURES, {
-            filter: structure => structure.structureType === STRUCTURE_EXTENSION
-        }) as StructureExtension[];
-
-        const extensionCapacity = _.sum(extensions.map(extension => extension.store.getCapacity(RESOURCE_ENERGY)));
-        const spawnCapacity = this.spawn.store.getCapacity(RESOURCE_ENERGY);
-        const totalCapacity = extensionCapacity + spawnCapacity;
-
-        if (CreepUtil.calculateBodyCost(request.body) > totalCapacity) {
-            throw new Error("Creep body too large to be spawned by spawn");
-        } else {
-            this.queue.push(request);
-        }
-    }
-
     public getMaxSpawnableEnergy(): number {
         const extensions = this.room.find(FIND_MY_STRUCTURES, {
             filter: structure => structure.structureType === STRUCTURE_EXTENSION
@@ -56,8 +34,8 @@ export class SpawnController implements TickRunnable {
             return null;
         }
         const request = _.find(this.queue, request => CreepUtil.calculateBodyCost(request.body) <= this.getMaxSpawnableEnergy());
-        request && _.pull(this.queue, request);
-        return request || null;
+        console.log(`Popping request ${request?.name} from spawn queue`);
+        return request ?? null;
     }
 
     /**
@@ -65,6 +43,7 @@ export class SpawnController implements TickRunnable {
      * @remarks This method should be called once per tick.
      */
     public run(): ScreepsReturnCode | null {
+        console.log(`Running spawn controller for ${this.spawn.name}`);
         if (this.spawn.spawning) {
             return null;
         }
@@ -76,6 +55,10 @@ export class SpawnController implements TickRunnable {
             const result = this.spawn.spawnCreep(request.body, request.name, {
                 memory: request.memory
             });
+            if (result === OK) {
+                _.pull(this.queue, request);
+                console.log(`Spawned creep ${request.name}`);
+            }
             return result;
         }
         return null;

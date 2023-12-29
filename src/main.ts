@@ -15,14 +15,18 @@ declare global {
     interface Memory {
         uuid: number;
         log: any;
-        spawnQueue: CreepCreationRequest[];
     }
 
     interface CreepMemory {
         type: string;
         role: string;
+        actingRole?: string;
         room: string;
         working: boolean;
+    }
+
+    interface RoomMemory {
+        spawnQueue: CreepCreationRequest[];
     }
 
     // Syntax for adding proprties to `global` (ex "global.log")
